@@ -1,4 +1,4 @@
-﻿# RDI_PROJET_Bulletin-meteo
+# RDI_PROJET_Bulletin-meteo
 
 Production du bulletin meteo Bordeaux.
 
