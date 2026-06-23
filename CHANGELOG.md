@@ -1,5 +1,11 @@
-﻿# Changelog
+# Changelog
 
+## 20260623-prod-v1.0.1 - 2026-06-23
+
+- Ajout d'une protection timeout autour de l'envoi Outlook pour eviter qu'une tache reste bloquee indefiniment.
+- Validation DryRun apres correction : OK.
+- Tentative d'envoi reel : generation HTML/PDF OK, blocage Outlook COM confirme.
+- Preuves d'echec archivees dans `20260623/Archives/Preuves/20260623/outlook-com-fail`.
 ## 20260623-prod-v1.0.0 - 2026-06-23
 
 - Mise en production cible sur le serveur 10.2.2.12.

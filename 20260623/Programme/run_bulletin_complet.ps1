@@ -3,7 +3,10 @@
 # 2. Convertit en PDF via Playwright (html_to_pdf.py)
 # 3. Envoie l'e-mail via Outlook avec le PDF en piece jointe
 
-param([switch]$DryRun)
+param(
+    [switch]$DryRun,
+    [int]$MailTimeoutSeconds = 120
+)
 
 $ErrorActionPreference = "Stop"
 $scriptDir   = $PSScriptRoot
@@ -65,6 +68,7 @@ function Find-Python {
 
     return $null
 }
+
 Log "=== Debut pipeline bulletin ==="
 
 $python = Find-Python
@@ -144,11 +148,40 @@ if (-not (Test-Path $sendScript)) {
 
 if ($DryRun) {
     $sendOutput = & $sendScript -PdfPath $pdfPath -DryRun 2>&1
+    $sendCode = $LASTEXITCODE
 } else {
-    $sendOutput = & $sendScript -PdfPath $pdfPath 2>&1
+    $mailStamp = Get-Date -Format "yyyyMMdd-HHmmss-ffff"
+    $mailOut = Join-Path $env:TEMP "bulletin_mail_$mailStamp.out.log"
+    $mailErr = Join-Path $env:TEMP "bulletin_mail_$mailStamp.err.log"
+    $powershellExe = Join-Path $PSHOME "powershell.exe"
+    $mailArgs = @(
+        "-ExecutionPolicy", "Bypass",
+        "-NoProfile",
+        "-File", $sendScript,
+        "-PdfPath", $pdfPath
+    )
+
+    $mailProcess = Start-Process -FilePath $powershellExe -ArgumentList $mailArgs `
+        -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput $mailOut -RedirectStandardError $mailErr
+
+    if (-not $mailProcess.WaitForExit($MailTimeoutSeconds * 1000)) {
+        try { $mailProcess.Kill() } catch {}
+        $sendCode = 124
+        $sendOutput = @("Timeout envoi e-mail apres $MailTimeoutSeconds secondes. Processus PowerShell mail arrete.")
+    } else {
+        $sendCode = $mailProcess.ExitCode
+        $sendOutput = @()
+    }
+
+    foreach ($mailLog in @($mailOut, $mailErr)) {
+        if (Test-Path -LiteralPath $mailLog) {
+            $sendOutput += Get-Content -LiteralPath $mailLog -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $mailLog -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
-$sendCode = $LASTEXITCODE
-$sendOutput | Where-Object { "$_".Trim() } | ForEach-Object { Log "  [mail] $_" }
+$sendOutput | Where-Object { "$($_)".Trim() } | ForEach-Object { Log "  [mail] $_" }
 if ($sendCode -ne 0) {
     Log "Etape 3 : ERREUR - envoi non confirme (code $sendCode)"
     exit 1

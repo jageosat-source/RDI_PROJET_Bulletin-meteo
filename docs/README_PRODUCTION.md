@@ -1,4 +1,4 @@
-﻿# Exploitation production
+# Exploitation production
 
 ## Environnement
 
@@ -40,3 +40,20 @@ Envoi reel :
 Log courant : `20260623/Programme/run_log.txt`
 
 Les logs de preuve ou de recette doivent etre archives dans `20260623/Archives/Preuves` ou `20260623/Archives/Logs`.
+
+## Protection anti-blocage Outlook
+
+`run_bulletin_complet.ps1` accepte `-MailTimeoutSeconds`.
+Par defaut, l'etape mail est arretee apres 120 secondes si Outlook COM ne repond pas.
+
+Exemple de test court :
+
+```powershell
+& "D:\JAU\RDI_PROJET_Bulletin-meteo\20260623\Programme\run_bulletin_complet.ps1" -MailTimeoutSeconds 20
+```
+
+## Point de vigilance Outlook
+
+Les etapes Python, Playwright et PDF sont validees.
+L'envoi reel reste dependant d'Outlook COM dans la session `j.augeraud`.
+Si l'erreur `0x80080005 CO_E_SERVER_EXEC_FAILURE` apparait, ouvrir Outlook manuellement dans la session serveur, terminer toute configuration de profil/compte, puis relancer un test d'envoi.
