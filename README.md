@@ -2,7 +2,7 @@
 
 Production du bulletin meteo Bordeaux.
 
-Version de production active : `20260623-prod-v1.0.1`.
+Version de production active : `RDI_MeteoBot_20260623-v1.0.1`.
 
 Le code source de production se trouve dans `20260623/Programme`.
 Les bulletins, logs et preuves de recette sont conserves localement et exclus du versionnage Git courant.

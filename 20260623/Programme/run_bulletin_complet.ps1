@@ -175,9 +175,24 @@ if ($DryRun) {
     }
 
     foreach ($mailLog in @($mailOut, $mailErr)) {
-        if (Test-Path -LiteralPath $mailLog) {
-            $sendOutput += Get-Content -LiteralPath $mailLog -ErrorAction SilentlyContinue
-            Remove-Item -LiteralPath $mailLog -Force -ErrorAction SilentlyContinue
+        if ([string]::IsNullOrWhiteSpace($mailLog)) {
+            continue
+        }
+
+        try {
+            if ([System.IO.File]::Exists($mailLog)) {
+                $sendOutput += Get-Content -LiteralPath $mailLog -ErrorAction SilentlyContinue
+            }
+        } catch {
+            $sendOutput += "Lecture log mail ignoree : $($_.Exception.Message)"
+        }
+
+        try {
+            if ([System.IO.File]::Exists($mailLog)) {
+                [System.IO.File]::Delete($mailLog)
+            }
+        } catch {
+            $sendOutput += "Nettoyage log mail ignore : $($_.Exception.Message)"
         }
     }
 }

@@ -15,6 +15,8 @@ Le pipeline ne depend pas du `PATH` Windows pour Python. Il recherche d'abord le
 3. Envoi Outlook avec le PDF en piece jointe.
 4. Destinataires places en CCI depuis `20260623/Programme/Liste-diffusion.csv`.
 
+Statut de recette : envoi reel confirme recu apres relance PowerShell le 2026-06-23 a 11:10.
+
 ## Tache planifiee
 
 Nom : `BulletinMeteoLunVen`
@@ -55,5 +57,5 @@ Exemple de test court :
 ## Point de vigilance Outlook
 
 Les etapes Python, Playwright et PDF sont validees.
-L'envoi reel reste dependant d'Outlook COM dans la session `j.augeraud`.
+L'envoi reel depend d'Outlook COM dans la session `j.augeraud`.
 Si l'erreur `0x80080005 CO_E_SERVER_EXEC_FAILURE` apparait, ouvrir Outlook manuellement dans la session serveur, terminer toute configuration de profil/compte, puis relancer un test d'envoi.
