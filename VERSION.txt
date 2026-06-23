@@ -1,0 +1,7 @@
+﻿20260623-prod-v1.0.0
+Date: 2026-06-23
+Machine cible: 10.2.2.12
+Utilisateur d'execution: j.augeraud
+Python runtime: D:\JAU\.venv\Scripts\python.exe
+Frequence: lundi-vendredi 08:00
+Canal d'envoi: Outlook e-mail, destinataires en CCI, PDF uniquement

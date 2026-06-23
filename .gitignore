@@ -1,0 +1,30 @@
+﻿# Python / environnements
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# IDE local
+.idea/
+**/.idea/
+.vscode/
+
+# Donnees d'exploitation
+20260623/Bulletins/*
+!20260623/Bulletins/.gitkeep
+20260623/Programme/run_log.txt
+20260623/Programme/setup_result.txt
+
+# Archives locales / preuves / releases
+*.zip
+*.7z
+20260623/Archives/**
+!20260623/Archives/.gitkeep
+
+# Fichiers temporaires
+*.tmp
+*.bak
+*.log
+.DS_Store
+Thumbs.db
