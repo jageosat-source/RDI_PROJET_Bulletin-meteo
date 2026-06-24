@@ -1,18 +1,22 @@
 # setup_tache_planifiee.ps1
 # Cree / met a jour la tache planifiee : Bulletin Meteo, Lundi->Vendredi a 08h00,
-# EN SESSION utilisateur (Outlook COM exige une session ouverte).
+# avec envoi SMTP, sans dependance Outlook.
 #
 # Robustesse :
 #   - StartWhenAvailable : rattrape un declenchement manque (PC eteint/en veille a 08h00)
-#                          -> la tache part des que possible apres l'ouverture de session
+#                          -> la tache part des que possible apres disponibilite
 #   - batterie : demarre et continue meme sur batterie (portable)
 #   - WakeToRun : sort le PC de veille pour executer (sans effet si totalement eteint)
-#   - RunLevel Limited (NON eleve) : INDISPENSABLE pour Outlook COM (sinon mismatch d'integrite)
+#   - LogonType Interactive : valide en session ouverte ou deconnectee.
+#     Pour fonctionner apres redemarrage sans session, utiliser un compte/service dedie.
 
 $taskName = "BulletinMeteoLunVen"
 $scriptDir = $PSScriptRoot
 $ps1      = Join-Path $scriptDir "run_bulletin_complet.ps1"
 $logOut   = Join-Path $scriptDir "setup_result.txt"
+$smtpServer = "mx-mibc-fr-08.mailinblack.com"
+$smtpPort = 25
+$mailFrom = "j.augeraud@geo-sat.com"
 
 $out = @()
 $out += "=== Configuration tache : $taskName ==="
@@ -23,13 +27,25 @@ foreach ($old in @("BulletinMeteoLundi")) {
     try { Unregister-ScheduledTask -TaskName $old -Confirm:$false -ErrorAction Stop; $out += "Ancienne tache supprimee : $old" } catch {}
 }
 
-$action = New-ScheduledTaskAction -Execute "powershell.exe" `
-          -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$ps1`""
+$actionArgs = @(
+    "-ExecutionPolicy", "Bypass",
+    "-NoProfile",
+    "-WindowStyle", "Hidden",
+    "-File", "`"$ps1`"",
+    "-DeliveryMethod", "Smtp",
+    "-SmtpServer", $smtpServer,
+    "-SmtpPort", $smtpPort,
+    "-From", $mailFrom,
+    "-MailTimeoutSeconds", "120"
+) -join " "
+
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $actionArgs
 
 $trigger = New-ScheduledTaskTrigger -Weekly `
            -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 8:00AM
 
-# LogonType Interactive => tourne dans la session de l'utilisateur connecte, sans mot de passe stocke
+# LogonType Interactive => tourne dans la session utilisateur ouverte ou deconnectee,
+# sans mot de passe stocke. Suffisant pour SMTP tant que la session reste active.
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
              -LogonType Interactive -RunLevel Limited
 
@@ -49,9 +65,13 @@ $out += ""
 $out += "=== Verification ==="
 $out += "Etat               : $($t.State)"
 $out += "Prochaine execution: $($info.NextRunTime)"
+$out += "Mode envoi         : SMTP"
+$out += "SMTP               : $smtpServer`:$smtpPort"
+$out += "Expediteur         : $mailFrom"
 $out += "StartWhenAvailable : $($t.Settings.StartWhenAvailable)"
 $out += "Sur batterie OK    : $(-not $t.Settings.DisallowStartIfOnBatteries)"
-$out += "RunLevel           : $($t.Principal.RunLevel) (doit etre Limited pour Outlook COM)"
+$out += "LogonType          : $($t.Principal.LogonType)"
+$out += "RunLevel           : $($t.Principal.RunLevel)"
 
 $out | Out-File $logOut -Encoding UTF8
 $out | ForEach-Object { Write-Host $_ }

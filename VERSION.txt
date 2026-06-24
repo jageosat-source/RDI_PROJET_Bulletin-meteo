@@ -1,8 +1,9 @@
-RDI_MeteoBot_20260623-v1.0.1
-Date: 2026-06-23
+RDI_MeteoBot_20260624-v1.1.0
+Date: 2026-06-24
 Machine cible: 10.2.2.12
 Utilisateur d'execution: j.augeraud
 Python runtime: D:\JAU\.venv\Scripts\python.exe
 Frequence: lundi-vendredi 08:00
-Canal d'envoi: Outlook e-mail, destinataires en CCI, PDF uniquement
-Statut: operationnel ; envoi reel recu apres relance PowerShell le 2026-06-23 a 11:10.
+Canal d'envoi: SMTP, destinataires en CCI, PDF uniquement
+Relais SMTP: mx-mibc-fr-08.mailinblack.com:25
+Statut: operationnel ; envoi SMTP reel recu le 2026-06-24 a 10:28.

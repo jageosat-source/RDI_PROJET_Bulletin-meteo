@@ -23,6 +23,7 @@ __pycache__/
 !20260623/Archives/.gitkeep
 
 # Fichiers temporaires
+temporaire/
 *.tmp
 *.bak
 *.log

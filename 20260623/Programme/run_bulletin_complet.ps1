@@ -1,11 +1,17 @@
 # run_bulletin_complet.ps1 - Pipeline complet bulletin meteo
 # 1. Genere le bulletin HTML via Python (generate_bulletin.py)
 # 2. Convertit en PDF via Playwright (html_to_pdf.py)
-# 3. Envoie l'e-mail via Outlook avec le PDF en piece jointe
+# 3. Envoie l'e-mail avec le PDF en piece jointe
 
 param(
     [switch]$DryRun,
-    [int]$MailTimeoutSeconds = 120
+    [int]$MailTimeoutSeconds = 120,
+    [ValidateSet("Outlook", "Smtp")]
+    [string]$DeliveryMethod = "Outlook",
+    [string]$SmtpServer = "mx-mibc-fr-08.mailinblack.com",
+    [int]$SmtpPort = 25,
+    [switch]$SmtpUseSsl,
+    [string]$From = "j.augeraud@geo-sat.com"
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,6 +85,10 @@ if (-not $python) {
 $pythonExe = $python.Exe
 $pythonPre = $python.Pre
 Log "Python : $pythonExe $($pythonPre -join ' ')"
+Log "Mode envoi : $DeliveryMethod"
+if ($DeliveryMethod -eq "Smtp") {
+    Log "SMTP : $SmtpServer`:$SmtpPort SSL=$([bool]$SmtpUseSsl) From=$From"
+}
 
 # Etape 1 : generation du bulletin HTML
 Log "Etape 1 : generation bulletin Python..."
@@ -147,7 +157,18 @@ if (-not (Test-Path $sendScript)) {
 }
 
 if ($DryRun) {
-    $sendOutput = & $sendScript -PdfPath $pdfPath -DryRun 2>&1
+    $sendArgs = @{
+        PdfPath = $pdfPath
+        DeliveryMethod = $DeliveryMethod
+        SmtpServer = $SmtpServer
+        SmtpPort = $SmtpPort
+        From = $From
+        DryRun = $true
+    }
+    if ($SmtpUseSsl) {
+        $sendArgs.SmtpUseSsl = $true
+    }
+    $sendOutput = & $sendScript @sendArgs 2>&1
     $sendCode = $LASTEXITCODE
 } else {
     $mailStamp = Get-Date -Format "yyyyMMdd-HHmmss-ffff"
@@ -158,8 +179,15 @@ if ($DryRun) {
         "-ExecutionPolicy", "Bypass",
         "-NoProfile",
         "-File", $sendScript,
-        "-PdfPath", $pdfPath
+        "-PdfPath", $pdfPath,
+        "-DeliveryMethod", $DeliveryMethod,
+        "-SmtpServer", $SmtpServer,
+        "-SmtpPort", $SmtpPort,
+        "-From", $From
     )
+    if ($SmtpUseSsl) {
+        $mailArgs += "-SmtpUseSsl"
+    }
 
     $mailProcess = Start-Process -FilePath $powershellExe -ArgumentList $mailArgs `
         -PassThru -WindowStyle Hidden `
@@ -170,6 +198,7 @@ if ($DryRun) {
         $sendCode = 124
         $sendOutput = @("Timeout envoi e-mail apres $MailTimeoutSeconds secondes. Processus PowerShell mail arrete.")
     } else {
+        $mailProcess.Refresh()
         $sendCode = $mailProcess.ExitCode
         $sendOutput = @()
     }
@@ -196,6 +225,18 @@ if ($DryRun) {
         }
     }
 }
+
+if ($null -eq $sendCode) {
+    $okMailLine = $sendOutput | Where-Object { "$($_)" -match '\[OK\] E-mail envoye' } | Select-Object -First 1
+    if ($okMailLine) {
+        $sendCode = 0
+        $sendOutput += "Code retour mail indisponible ; succes confirme par la sortie du script mail."
+    } else {
+        $sendCode = 1
+        $sendOutput += "Code retour mail indisponible ; succes non confirme."
+    }
+}
+
 $sendOutput | Where-Object { "$($_)".Trim() } | ForEach-Object { Log "  [mail] $_" }
 if ($sendCode -ne 0) {
     Log "Etape 3 : ERREUR - envoi non confirme (code $sendCode)"

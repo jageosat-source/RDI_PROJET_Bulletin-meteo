@@ -1,5 +1,13 @@
 # Changelog
 
+## RDI_MeteoBot_20260624-v1.1.0 - 2026-06-24
+
+- Bascule preparee de l'envoi mail Outlook vers SMTP via `mx-mibc-fr-08.mailinblack.com:25`.
+- Liste de diffusion limitee aux adresses `@geo-sat.com`.
+- Ajout du parametre `-DeliveryMethod Smtp` dans le pipeline.
+- Test reel SMTP confirme recu le 2026-06-24 a 10:28 avec session poste client fermee/deconnectee.
+- Correction de la confirmation d'envoi quand le sous-processus mail retourne un code indisponible mais une sortie `[OK]`.
+
 ## RDI_MeteoBot_20260623-v1.0.1 - 2026-06-23
 
 - Ajout d'une protection timeout autour de l'envoi Outlook pour eviter qu'une tache reste bloquee indefiniment.

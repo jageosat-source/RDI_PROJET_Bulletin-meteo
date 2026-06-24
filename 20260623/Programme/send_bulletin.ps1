@@ -4,6 +4,12 @@
 param(
     [string]$PdfPath = "",
     [string]$DiffusionListPath = (Join-Path $PSScriptRoot "Liste-diffusion.csv"),
+    [ValidateSet("Outlook", "Smtp")]
+    [string]$DeliveryMethod = "Outlook",
+    [string]$SmtpServer = "mx-mibc-fr-08.mailinblack.com",
+    [int]$SmtpPort = 25,
+    [switch]$SmtpUseSsl,
+    [string]$From = "j.augeraud@geo-sat.com",
     [switch]$DryRun
 )
 
@@ -133,46 +139,88 @@ $joursFR = @("Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi")
 $moisFR  = @("","Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre")
 $dateLabel = "$($joursFR[$now.DayOfWeek.value__]) $($now.Day) $($moisFR[$now.Month]) $($now.Year)"
 $subject   = "Bulletin Météo Bordeaux — $dateLabel"
+$body      = "Bonjour,$([Environment]::NewLine * 2)Veuillez trouver ci-joint le bulletin météo de l'agglomération Bordelaise.$([Environment]::NewLine * 2)$dateLabel"
 
 if ($DryRun) {
     Write-Host ""
     Write-Host "=== Controle e-mail (sans envoi) ==="
+    Write-Host "Mode envoi : $DeliveryMethod"
     Write-Host "Liste diffusion : $DiffusionListPath"
     Write-Host "Destinataires CCI : $($recipients.Count)"
     Write-Host "Piece jointe : PDF"
+    if ($DeliveryMethod -eq "Smtp") {
+        Write-Host "SMTP : $SmtpServer`:$SmtpPort SSL=$([bool]$SmtpUseSsl)"
+        Write-Host "Expediteur : $From"
+    }
     Write-Host "[OK] Controle sans envoi termine — $subject"
     exit 0
 }
 
-# Envoi via Outlook
-Write-Host ""
-Write-Host "=== Envoi e-mail (Outlook) ==="
-try {
-    # S'attacher a l'Outlook deja ouvert (sinon en lancer un) — evite l'erreur
-    # CO_E_SERVER_EXEC_FAILURE quand Outlook tourne deja dans la session.
-    $outlook = $null
-    try { $outlook = [Runtime.InteropServices.Marshal]::GetActiveObject("Outlook.Application") } catch {}
-    if (-not $outlook) { $outlook = New-Object -ComObject Outlook.Application }
-    try { $outlook.GetNamespace("MAPI").Logon($null,$null,$false,$false) } catch {}
-
-    $mail         = $outlook.CreateItem(0)
-    $mail.BCC     = $bccLine
-    $mail.Subject = $subject
-    $mail.Body    = "Bonjour,$([Environment]::NewLine * 2)Veuillez trouver ci-joint le bulletin météo de l'agglomération Bordelaise.$([Environment]::NewLine * 2)$dateLabel"
-
-    $mail.Attachments.Add($PdfPath) | Out-Null
+if ($DeliveryMethod -eq "Smtp") {
+    Write-Host ""
+    Write-Host "=== Envoi e-mail (SMTP) ==="
+    Write-Host "SMTP : $SmtpServer`:$SmtpPort SSL=$([bool]$SmtpUseSsl)"
+    Write-Host "Expediteur : $From"
     Write-Host "Liste diffusion : $DiffusionListPath"
     Write-Host "Destinataires CCI : $($recipients.Count)"
     Write-Host "Piece jointe : PDF"
 
-    $mail.Send()
-    Write-Host "[OK] E-mail envoyé — $subject"
-} catch {
-    # exit 1 : l'appelant (run_bulletin_complet.ps1 / tache planifiee) doit voir l'echec
-    Write-Error "[ERREUR] Outlook : $_"
-    exit 1
+    $mail = New-Object System.Net.Mail.MailMessage
+    $smtp = New-Object System.Net.Mail.SmtpClient($SmtpServer, $SmtpPort)
+    try {
+        $mail.From = $From
+        foreach ($recipient in $recipients) {
+            $mail.Bcc.Add($recipient)
+        }
+        $mail.Subject = $subject
+        $mail.Body = $body
+        $mail.Attachments.Add($PdfPath) | Out-Null
+
+        $smtp.EnableSsl = [bool]$SmtpUseSsl
+        $smtp.Timeout = 60000
+        $smtp.DeliveryMethod = [System.Net.Mail.SmtpDeliveryMethod]::Network
+        $smtp.UseDefaultCredentials = $false
+        $smtp.Send($mail)
+        Write-Host "[OK] E-mail envoye SMTP — $subject"
+    } catch {
+        Write-Error "[ERREUR] SMTP : $_"
+        exit 1
+    } finally {
+        $mail.Dispose()
+        $smtp.Dispose()
+    }
+}
+else {
+    # Envoi via Outlook
+    Write-Host ""
+    Write-Host "=== Envoi e-mail (Outlook) ==="
+    try {
+        # S'attacher a l'Outlook deja ouvert (sinon en lancer un) — evite l'erreur
+        # CO_E_SERVER_EXEC_FAILURE quand Outlook tourne deja dans la session.
+        $outlook = $null
+        try { $outlook = [Runtime.InteropServices.Marshal]::GetActiveObject("Outlook.Application") } catch {}
+        if (-not $outlook) { $outlook = New-Object -ComObject Outlook.Application }
+        try { $outlook.GetNamespace("MAPI").Logon($null,$null,$false,$false) } catch {}
+
+        $mail         = $outlook.CreateItem(0)
+        $mail.BCC     = $bccLine
+        $mail.Subject = $subject
+        $mail.Body    = $body
+
+        $mail.Attachments.Add($PdfPath) | Out-Null
+        Write-Host "Liste diffusion : $DiffusionListPath"
+        Write-Host "Destinataires CCI : $($recipients.Count)"
+        Write-Host "Piece jointe : PDF"
+
+        $mail.Send()
+        Write-Host "[OK] E-mail envoye Outlook — $subject"
+    } catch {
+        # exit 1 : l'appelant (run_bulletin_complet.ps1 / tache planifiee) doit voir l'echec
+        Write-Error "[ERREUR] Outlook : $_"
+        exit 1
+    }
 }
 
 Write-Host ""
-Write-Host "Terminé."
+Write-Host "Termine."
 exit 0
